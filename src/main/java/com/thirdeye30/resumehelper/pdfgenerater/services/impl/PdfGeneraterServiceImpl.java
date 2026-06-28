@@ -1,20 +1,27 @@
 package com.thirdeye30.resumehelper.pdfgenerater.services.impl;
 
+import com.thirdeye30.resumehelper.pdfgenerater.services.CourseService;
 import com.thirdeye30.resumehelper.pdfgenerater.services.PdfGeneraterService;
 import com.thirdeye30.resumehelper.pdfgenerater.services.ResumeService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+import com.thirdeye30.resumehelper.pdfgenerater.dtos.CourseDto;
 import com.thirdeye30.resumehelper.pdfgenerater.dtos.ResumeContentDto;
 import com.thirdeye30.resumehelper.pdfgenerater.enums.PdfType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.HtmlUtils;
 
 import java.io.ByteArrayOutputStream;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -24,21 +31,42 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
 
     private final ObjectMapper objectMapper;
     private final ResumeService resumeService;
+    private final CourseService courseService;
+    private final StringRedisTemplate redisTemplate;
     private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${thirdeye.redis.pdf-prefix}")
+    private String pdfResumePrefix;
 
     @Override
     public byte[] generatePdf(UUID resumeId, PdfType pdfType){
-        
         log.info("Generating PDF for resume {} using template {}", resumeId, pdfType);
+        
+        // 1. Define unique cache key combining resume ID and the selected layout template
+        String cacheKey = pdfResumePrefix + "pdf:" + resumeId + ":" + pdfType.name();
+        
+        try {
+            // 2. Try fetching from Redis Cache
+            String cachedPdfBase64 = redisTemplate.opsForValue().get(cacheKey);
+            if (cachedPdfBase64 != null && !cachedPdfBase64.isBlank()) {
+                log.info("Cache hit for generated PDF: {} ({})", resumeId, pdfType);
+                return Base64.getDecoder().decode(cachedPdfBase64);
+            }
+        } catch (Exception e) {
+            // Fail-silent on Redis lookup issues so generation still processes normally
+            log.error("Redis read failed during PDF cache check for resume: {}", resumeId, e);
+        }
+
+        log.info("Cache miss for generated PDF: {}. Processing raw compilation.", resumeId);
         ResumeContentDto dto = resumeService.getResumeContent(resumeId);
         String toonJsonString = null;
         if(dto.getContent() != null && dto.getContent().length() > 0)
         {
-        	toonJsonString = dto.getContent();
+            toonJsonString = dto.getContent();
         }
         else if(dto.getContentUrl() != null && dto.getContentUrl().length() > 0)
         {
-        	log.info("Fetching TOON data from URL: {}", dto.getContentUrl());
+            log.info("Fetching TOON data from URL: {}", dto.getContentUrl());
             try {
                 toonJsonString = restTemplate.getForObject(dto.getContentUrl(), String.class);
             } catch (Exception e) {
@@ -62,13 +90,25 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
                 builder.withHtmlContent(htmlContent, null);
                 builder.toStream(os);
                 builder.run();
-                return os.toByteArray();
+                
+                byte[] pdfBytes = os.toByteArray();
+                
+                // 3. Cache the compiled byte results into Redis as an ASCII Base64 string
+                try {
+                    String base64Payload = Base64.getEncoder().encodeToString(pdfBytes);
+                    // Match the 30-minute lifespan of your primary resume content service cache layer
+                    redisTemplate.opsForValue().set(cacheKey, base64Payload, Duration.ofMinutes(15));
+                    log.info("Successfully saved compiled PDF payload in Redis for key: {}", resumeId);
+                } catch (Exception cacheEx) {
+                    log.error("Failed to populate compiled PDF cache for resume: {}", resumeId, cacheEx);
+                }
+                
+                return pdfBytes;
             }
         } catch(Exception e) {
-        	log.error("unable to create pdf: {}", resumeId, e);
+            log.error("unable to create pdf: {}", resumeId, e);
             throw new RuntimeException("PDF Secure Upload Failed", e);
         }
-        
     }
 
     private String buildHtmlFromToon(List<List<Object>> toonData, PdfType type) {
@@ -77,7 +117,6 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
         html.append(getCssForType(type));
         html.append("</style></head><body>");
 
-        // Recursively parse the TOON data
         for (List<Object> node : toonData) {
             parseToonNode(node, html, 1);
         }
@@ -89,7 +128,6 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
     private String getCssForType(PdfType type) {
         switch (type) {
             case TYPE_2: 
-                // MODERN (Sans-serif, blue accents)
                 return "body { font-family: 'Helvetica', sans-serif; color: #333; line-height: 1.6; padding: 30px; }" +
                        "h1 { font-size: 22px; color: #2b6cb0; border-bottom: 2px solid #ebf8ff; padding-bottom: 5px; margin-top: 20px; text-transform: uppercase; }" +
                        "h2 { font-size: 16px; color: #2d3748; margin-bottom: 5px; font-weight: bold; }" +
@@ -98,7 +136,6 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
                        "ul { margin-top: 5px; padding-left: 20px; }";
                        
             case TYPE_3:
-                // CREATIVE / MINIMALIST (Clean, spaced out, emerald accents)
                 return "body { font-family: 'Arial', sans-serif; color: #1a202c; line-height: 1.7; padding: 40px; }" +
                        "h1 { font-size: 20px; color: #047857; margin-top: 25px; margin-bottom: 10px; letter-spacing: 1px; }" +
                        "h2 { font-size: 15px; color: #374151; margin-bottom: 5px; font-style: italic; }" +
@@ -108,7 +145,6 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
                        
             case TYPE_1:
             default:
-                // CLASSIC / TRADITIONAL (Serif, black and white, standard margins)
                 return "body { font-family: 'Times New Roman', serif; color: #000; line-height: 1.4; padding: 25px; }" +
                        "h1 { font-size: 24px; color: #000; border-bottom: 1px solid #000; padding-bottom: 3px; margin-top: 15px; text-align: center; }" +
                        "h2 { font-size: 16px; color: #000; margin-bottom: 3px; }" +
@@ -118,16 +154,15 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void parseToonNode(List<Object> node, StringBuilder html, int depth) {
         if (node == null || node.size() != 3) return;
 
-        // 1. Escape metadata if there's any chance they contain special characters
         String name = HtmlUtils.htmlEscape(String.valueOf(node.get(0))); 
         String type = String.valueOf(node.get(1));
         Object content = node.get(2);
 
         if ("string".equals(type)) {
-            // 2. CRITICAL: Escape the actual text content being injected into the HTML body
             String safeContent = HtmlUtils.htmlEscape(String.valueOf(content));
 
             if (depth == 1) {
@@ -159,4 +194,127 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
             }
         }
     }
+
+    @Override
+	public byte[] generatePdf(UUID courseId) {
+		log.info("Generating Roadmap PDF for course {}", courseId);
+		
+		// 1. Fetch the Course Details
+		CourseDto courseDto = courseService.getCourse(courseId);
+		if (courseDto == null) {
+			throw new RuntimeException("Course Roadmap not found for ID: " + courseId);
+		}
+
+		// 2. Build the HTML string using the DTO data
+		String htmlContent = buildRoadmapHtml(courseDto);
+
+		// 3. Compile the HTML into a PDF byte array
+		try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+			PdfRendererBuilder builder = new PdfRendererBuilder();
+			builder.useFastMode();
+			builder.withHtmlContent(htmlContent, null);
+			builder.toStream(os);
+			builder.run();
+			
+			return os.toByteArray();
+		} catch(Exception e) {
+			log.error("Unable to create course roadmap pdf: {}", courseId, e);
+			throw new RuntimeException("Roadmap PDF Generation Failed", e);
+		}
+	}
+
+	private String buildRoadmapHtml(CourseDto dto) {
+		StringBuilder html = new StringBuilder();
+		
+		// --- CSS Styling for a Beautiful PDF ---
+		html.append("<html><head><style>");
+		html.append("body { font-family: 'Helvetica', 'Arial', sans-serif; color: #2d3748; line-height: 1.6; padding: 40px; } ");
+		
+		// Header Styles
+		html.append(".header { text-align: center; padding-bottom: 20px; border-bottom: 3px solid #2b6cb0; margin-bottom: 30px; } ");
+		html.append(".header h1 { color: #2b6cb0; font-size: 28px; margin: 0; text-transform: uppercase; letter-spacing: 1px; } ");
+		html.append(".header p { font-size: 16px; color: #4a5568; margin-top: 10px; font-weight: bold; } ");
+		
+		// Job Info Section Styles
+		html.append(".info-card { background-color: #f7fafc; padding: 20px; border-radius: 6px; margin-bottom: 35px; border-left: 5px solid #2b6cb0; } ");
+		html.append(".info-card h2 { margin-top: 0; font-size: 18px; color: #2d3748; margin-bottom: 12px; } ");
+		html.append(".info-card p { margin-bottom: 6px; font-size: 14px; color: #4a5568; } ");
+		html.append(".info-card a { color: #3182ce; text-decoration: none; } ");
+		
+		// Priority Sections & Tables
+		html.append(".priority-section { margin-bottom: 35px; } ");
+		html.append(".priority-title { font-size: 20px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #e2e8f0; } ");
+		// Color coding for different priorities
+		html.append(".High { color: #e53e3e; border-bottom-color: #e53e3e; } ");
+		html.append(".Medium { color: #d69e2e; border-bottom-color: #d69e2e; } ");
+		html.append(".Low { color: #38a169; border-bottom-color: #38a169; } ");
+		
+		html.append("table { width: 100%; border-collapse: collapse; margin-top: 10px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); } ");
+		html.append("th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; } ");
+		html.append("th { background-color: #edf2f7; font-weight: bold; color: #4a5568; } ");
+		html.append("td a { color: #2b6cb0; text-decoration: none; font-weight: bold; } ");
+		
+		// Footer Styles
+		html.append(".footer { margin-top: 50px; text-align: right; font-size: 15px; color: #4a5568; border-top: 1px solid #e2e8f0; padding-top: 20px; } ");
+		html.append(".footer p { margin: 5px 0; } ");
+		html.append("</style></head><body>");
+
+		// --- HTML Body ---
+		// 1. Header
+		html.append("<div class='header'>");
+		html.append("<h1>Your Interview  Roadmap</h1>");
+		html.append("<p>Preparation strategy tailored for your target role</p>");
+		html.append("</div>");
+
+		// 2. Target Job Information
+		html.append("<div class='info-card'>");
+		html.append("<h2>Target Role Information</h2>");
+		if (dto.getCompany() != null) {
+			html.append("<p><strong>Company:</strong> ").append(HtmlUtils.htmlEscape(dto.getCompany())).append("</p>");
+		}
+		if (dto.getJobDescription() != null) {
+			html.append("<p><strong>Role Overview:</strong> ").append(HtmlUtils.htmlEscape(dto.getJobDescription())).append("</p>");
+		}
+		if (dto.getJobUrl() != null) {
+			html.append("<p><strong>Job Posting:</strong> <a href=\"").append(dto.getJobUrl()).append("\">").append(HtmlUtils.htmlEscape(dto.getJobUrl())).append("</a></p>");
+		}
+		html.append("</div>");
+		Map<String, List<List<String>>> courseResult = dto.getCourseResult();
+		if (courseResult != null && !courseResult.isEmpty()) {
+			String[] expectedPriorities = {"High Priority", "Medium Priority", "Low Priority"};
+			
+			for (String priorityKey : expectedPriorities) {
+				if (courseResult.containsKey(priorityKey) && !courseResult.get(priorityKey).isEmpty()) {
+					String cssClass = priorityKey.split(" ")[0]; 
+					html.append("<div class='priority-section'>");
+					html.append("<h3 class='priority-title ").append(cssClass).append("'>").append(priorityKey).append(" Topics</h3>");
+					html.append("<table>");
+					html.append("<tr><th style='width: 30%;'>Key Subject</th><th>Study Resource Link</th></tr>");
+					
+					for (List<String> topicData : courseResult.get(priorityKey)) {
+						if (topicData != null && topicData.size() >= 2) {
+							String topicName = HtmlUtils.htmlEscape(topicData.get(0));
+							String rawLink = topicData.get(1);
+							String href = rawLink;
+							if (!href.startsWith("http") && !href.isEmpty()) {
+								href = "https://" + href;
+							}
+							
+							html.append("<tr>");
+							html.append("<td>").append(topicName).append("</td>");
+							html.append("<td><a href=\"").append(href).append("\">").append(HtmlUtils.htmlEscape(rawLink)).append("</a></td>");
+							html.append("</tr>");
+						}
+					}
+					html.append("</table></div>");
+				}
+			}
+		}
+		html.append("<div class='footer'>");
+		html.append("<p>Best of luck with your preparation,</p>");
+		html.append("<p><strong>Interview Prep Team</strong></p>");
+		html.append("</div>");
+		html.append("</body></html>");
+		return html.toString();
+	}
 }

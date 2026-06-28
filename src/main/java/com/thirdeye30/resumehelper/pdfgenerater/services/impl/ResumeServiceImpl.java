@@ -24,7 +24,7 @@ public class ResumeServiceImpl implements ResumeService {
 	
     private final StringRedisTemplate redisTemplate;
     private final ResumeManagerClient resumeManager;
-    private final ObjectMapper objectMapper; // Added ObjectMapper for JSON parsing
+    private final ObjectMapper objectMapper;
     
     @Value("${thirdeye.redis.resume-prefix}")
     private String redisResumePrefix;

@@ -6,5 +6,5 @@ import com.thirdeye30.resumehelper.pdfgenerater.enums.PdfType;
 
 public interface PdfGeneraterService {
 	byte[] generatePdf(UUID resumeId, PdfType pdfType);
-
+	byte[] generatePdf(UUID courseId);
 }
