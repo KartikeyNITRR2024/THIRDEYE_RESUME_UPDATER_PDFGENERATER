@@ -223,98 +223,159 @@ public class PdfGeneraterServiceImpl implements PdfGeneraterService {
 		}
 	}
 
-	private String buildRoadmapHtml(CourseDto dto) {
-		StringBuilder html = new StringBuilder();
-		
-		// --- CSS Styling for a Beautiful PDF ---
-		html.append("<html><head><style>");
-		html.append("body { font-family: 'Helvetica', 'Arial', sans-serif; color: #2d3748; line-height: 1.6; padding: 40px; } ");
-		
-		// Header Styles
-		html.append(".header { text-align: center; padding-bottom: 20px; border-bottom: 3px solid #2b6cb0; margin-bottom: 30px; } ");
-		html.append(".header h1 { color: #2b6cb0; font-size: 28px; margin: 0; text-transform: uppercase; letter-spacing: 1px; } ");
-		html.append(".header p { font-size: 16px; color: #4a5568; margin-top: 10px; font-weight: bold; } ");
-		
-		// Job Info Section Styles
-		html.append(".info-card { background-color: #f7fafc; padding: 20px; border-radius: 6px; margin-bottom: 35px; border-left: 5px solid #2b6cb0; } ");
-		html.append(".info-card h2 { margin-top: 0; font-size: 18px; color: #2d3748; margin-bottom: 12px; } ");
-		html.append(".info-card p { margin-bottom: 6px; font-size: 14px; color: #4a5568; } ");
-		html.append(".info-card a { color: #3182ce; text-decoration: none; } ");
-		
-		// Priority Sections & Tables
-		html.append(".priority-section { margin-bottom: 35px; } ");
-		html.append(".priority-title { font-size: 20px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #e2e8f0; } ");
-		// Color coding for different priorities
-		html.append(".High { color: #e53e3e; border-bottom-color: #e53e3e; } ");
-		html.append(".Medium { color: #d69e2e; border-bottom-color: #d69e2e; } ");
-		html.append(".Low { color: #38a169; border-bottom-color: #38a169; } ");
-		
-		html.append("table { width: 100%; border-collapse: collapse; margin-top: 10px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); } ");
-		html.append("th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; } ");
-		html.append("th { background-color: #edf2f7; font-weight: bold; color: #4a5568; } ");
-		html.append("td a { color: #2b6cb0; text-decoration: none; font-weight: bold; } ");
-		
-		// Footer Styles
-		html.append(".footer { margin-top: 50px; text-align: right; font-size: 15px; color: #4a5568; border-top: 1px solid #e2e8f0; padding-top: 20px; } ");
-		html.append(".footer p { margin: 5px 0; } ");
-		html.append("</style></head><body>");
+//	private String buildRoadmapHtml(CourseDto dto) {
+//		StringBuilder html = new StringBuilder();
+//		
+//		// --- CSS Styling for a Beautiful PDF ---
+//		html.append("<html><head><style>");
+//		html.append("body { font-family: 'Helvetica', 'Arial', sans-serif; color: #2d3748; line-height: 1.6; padding: 40px; } ");
+//		
+//		// Header Styles
+//		html.append(".header { text-align: center; padding-bottom: 20px; border-bottom: 3px solid #2b6cb0; margin-bottom: 30px; } ");
+//		html.append(".header h1 { color: #2b6cb0; font-size: 28px; margin: 0; text-transform: uppercase; letter-spacing: 1px; } ");
+//		html.append(".header p { font-size: 16px; color: #4a5568; margin-top: 10px; font-weight: bold; } ");
+//		
+//		// Job Info Section Styles
+//		html.append(".info-card { background-color: #f7fafc; padding: 20px; border-radius: 6px; margin-bottom: 35px; border-left: 5px solid #2b6cb0; } ");
+//		html.append(".info-card h2 { margin-top: 0; font-size: 18px; color: #2d3748; margin-bottom: 12px; } ");
+//		html.append(".info-card p { margin-bottom: 6px; font-size: 14px; color: #4a5568; } ");
+//		html.append(".info-card a { color: #3182ce; text-decoration: none; } ");
+//		
+//		// Priority Sections & Tables
+//		html.append(".priority-section { margin-bottom: 35px; } ");
+//		html.append(".priority-title { font-size: 20px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #e2e8f0; } ");
+//		// Color coding for different priorities
+//		html.append(".High { color: #e53e3e; border-bottom-color: #e53e3e; } ");
+//		html.append(".Medium { color: #d69e2e; border-bottom-color: #d69e2e; } ");
+//		html.append(".Low { color: #38a169; border-bottom-color: #38a169; } ");
+//		
+//		html.append("table { width: 100%; border-collapse: collapse; margin-top: 10px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); } ");
+//		html.append("th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; } ");
+//		html.append("th { background-color: #edf2f7; font-weight: bold; color: #4a5568; } ");
+//		html.append("td a { color: #2b6cb0; text-decoration: none; font-weight: bold; } ");
+//		
+//		// Footer Styles
+//		html.append(".footer { margin-top: 50px; text-align: right; font-size: 15px; color: #4a5568; border-top: 1px solid #e2e8f0; padding-top: 20px; } ");
+//		html.append(".footer p { margin: 5px 0; } ");
+//		html.append("</style></head><body>");
+//
+//		// --- HTML Body ---
+//		// 1. Header
+//		html.append("<div class='header'>");
+//		html.append("<h1>Your Interview  Roadmap</h1>");
+//		html.append("<p>Preparation strategy tailored for your target role</p>");
+//		html.append("</div>");
+//
+//		// 2. Target Job Information
+//		html.append("<div class='info-card'>");
+//		html.append("<h2>Target Role Information</h2>");
+//		if (dto.getCompany() != null) {
+//			html.append("<p><strong>Company:</strong> ").append(HtmlUtils.htmlEscape(dto.getCompany())).append("</p>");
+//		}
+//		if (dto.getJobDescription() != null) {
+//			html.append("<p><strong>Role Overview:</strong> ").append(HtmlUtils.htmlEscape(dto.getJobDescription())).append("</p>");
+//		}
+//		if (dto.getJobUrl() != null) {
+//			html.append("<p><strong>Job Posting:</strong> <a href=\"").append(dto.getJobUrl()).append("\">").append(HtmlUtils.htmlEscape(dto.getJobUrl())).append("</a></p>");
+//		}
+//		html.append("</div>");
+//		Map<String, List<List<String>>> courseResult = dto.getCourseResult();
+//		if (courseResult != null && !courseResult.isEmpty()) {
+//			String[] expectedPriorities = {"High Priority", "Medium Priority", "Low Priority"};
+//			
+//			for (String priorityKey : expectedPriorities) {
+//				if (courseResult.containsKey(priorityKey) && !courseResult.get(priorityKey).isEmpty()) {
+//					String cssClass = priorityKey.split(" ")[0]; 
+//					html.append("<div class='priority-section'>");
+//					html.append("<h3 class='priority-title ").append(cssClass).append("'>").append(priorityKey).append(" Topics</h3>");
+//					html.append("<table>");
+//					html.append("<tr><th style='width: 30%;'>Key Subject</th><th>Study Resource Link</th></tr>");
+//					
+//					for (List<String> topicData : courseResult.get(priorityKey)) {
+//						if (topicData != null && topicData.size() >= 2) {
+//							String topicName = HtmlUtils.htmlEscape(topicData.get(0));
+//							String rawLink = topicData.get(1);
+//							String href = rawLink;
+//							if (!href.startsWith("http") && !href.isEmpty()) {
+//								href = "https://" + href;
+//							}
+//							
+//							html.append("<tr>");
+//							html.append("<td>").append(topicName).append("</td>");
+//							html.append("<td><a href=\"").append(href).append("\">").append(HtmlUtils.htmlEscape(rawLink)).append("</a></td>");
+//							html.append("</tr>");
+//						}
+//					}
+//					html.append("</table></div>");
+//				}
+//			}
+//		}
+//		html.append("<div class='footer'>");
+//		html.append("<p>Best of luck with your preparation,</p>");
+//		html.append("<p><strong>Interview Prep Team</strong></p>");
+//		html.append("</div>");
+//		html.append("</body></html>");
+//		return html.toString();
+//	}
+    
+    private String buildRoadmapHtml(CourseDto dto) {
+        StringBuilder html = new StringBuilder();
+        
+        html.append("<html><head><style>");
+        html.append("body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; color: #1e293b; padding: 40px; margin: 0; } ");
+        
+        // Header
+        html.append(".header { text-align: center; margin-bottom: 40px; } ");
+        html.append(".header h1 { color: #4f46e5; font-size: 32px; margin: 0; } ");
+        
+        // Info Card
+        html.append(".info-card { background: #ffffff; padding: 25px; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; margin-bottom: 30px; } ");
+        html.append(".info-card h2 { color: #1e293b; font-size: 20px; margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 15px; } ");
+        html.append(".info-card p { font-size: 14px; margin: 8px 0; } ");
+        
+        // Items
+        html.append(".item-card { background: #ffffff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; } ");
+        html.append(".link-btn { background: #4f46e5; color: #ffffff !important; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: bold; display: inline-block; } ");
+        
+        html.append("</style></head><body>");
 
-		// --- HTML Body ---
-		// 1. Header
-		html.append("<div class='header'>");
-		html.append("<h1>Your Interview  Roadmap</h1>");
-		html.append("<p>Preparation strategy tailored for your target role</p>");
-		html.append("</div>");
+        // Header
+        html.append("<div class='header'><h1>ThirdEye AI Roadmap</h1><p>Your tailored preparation strategy</p></div>");
 
-		// 2. Target Job Information
-		html.append("<div class='info-card'>");
-		html.append("<h2>Target Role Information</h2>");
-		if (dto.getCompany() != null) {
-			html.append("<p><strong>Company:</strong> ").append(HtmlUtils.htmlEscape(dto.getCompany())).append("</p>");
-		}
-		if (dto.getJobDescription() != null) {
-			html.append("<p><strong>Role Overview:</strong> ").append(HtmlUtils.htmlEscape(dto.getJobDescription())).append("</p>");
-		}
-		if (dto.getJobUrl() != null) {
-			html.append("<p><strong>Job Posting:</strong> <a href=\"").append(dto.getJobUrl()).append("\">").append(HtmlUtils.htmlEscape(dto.getJobUrl())).append("</a></p>");
-		}
-		html.append("</div>");
-		Map<String, List<List<String>>> courseResult = dto.getCourseResult();
-		if (courseResult != null && !courseResult.isEmpty()) {
-			String[] expectedPriorities = {"High Priority", "Medium Priority", "Low Priority"};
-			
-			for (String priorityKey : expectedPriorities) {
-				if (courseResult.containsKey(priorityKey) && !courseResult.get(priorityKey).isEmpty()) {
-					String cssClass = priorityKey.split(" ")[0]; 
-					html.append("<div class='priority-section'>");
-					html.append("<h3 class='priority-title ").append(cssClass).append("'>").append(priorityKey).append(" Topics</h3>");
-					html.append("<table>");
-					html.append("<tr><th style='width: 30%;'>Key Subject</th><th>Study Resource Link</th></tr>");
-					
-					for (List<String> topicData : courseResult.get(priorityKey)) {
-						if (topicData != null && topicData.size() >= 2) {
-							String topicName = HtmlUtils.htmlEscape(topicData.get(0));
-							String rawLink = topicData.get(1);
-							String href = rawLink;
-							if (!href.startsWith("http") && !href.isEmpty()) {
-								href = "https://" + href;
-							}
-							
-							html.append("<tr>");
-							html.append("<td>").append(topicName).append("</td>");
-							html.append("<td><a href=\"").append(href).append("\">").append(HtmlUtils.htmlEscape(rawLink)).append("</a></td>");
-							html.append("</tr>");
-						}
-					}
-					html.append("</table></div>");
-				}
-			}
-		}
-		html.append("<div class='footer'>");
-		html.append("<p>Best of luck with your preparation,</p>");
-		html.append("<p><strong>Interview Prep Team</strong></p>");
-		html.append("</div>");
-		html.append("</body></html>");
-		return html.toString();
-	}
+        // Job Info (Included Job URL here)
+        html.append("<div class='info-card'>");
+        html.append("<h2>Target Role Info</h2>");
+        if (dto.getCompany() != null) html.append("<p><strong>Company:</strong> ").append(HtmlUtils.htmlEscape(dto.getCompany())).append("</p>");
+        if (dto.getJobDescription() != null) html.append("<p><strong>Focus:</strong> ").append(HtmlUtils.htmlEscape(dto.getJobDescription())).append("</p>");
+        if (dto.getJobUrl() != null) {
+            html.append("<p><strong>Job Posting:</strong> <a href='").append(dto.getJobUrl()).append("' style='color: #4f46e5;'>").append(dto.getJobUrl()).append("</a></p>");
+        }
+        html.append("</div>");
+
+        // Roadmap Items
+        Map<String, List<List<String>>> courseResult = dto.getCourseResult();
+        if (courseResult != null) {
+            String[] priorities = {"High Priority", "Medium Priority", "Low Priority"};
+            for (String key : priorities) {
+                if (courseResult.containsKey(key) && !courseResult.get(key).isEmpty()) {
+                    html.append("<h3 style='margin-bottom:15px; color: #4f46e5;'>").append(key).append("</h3>");
+                    for (List<String> topicData : courseResult.get(key)) {
+                    	if (topicData.size() >= 2) {
+                            String name = HtmlUtils.htmlEscape(topicData.get(0));
+                            String link = topicData.get(1);
+                            String href = link.startsWith("http") ? link : "https://" + link;
+                            
+                            html.append("<div class='item-card'>");
+                            html.append("<span style='font-weight: 600;'>").append("<a href='").append(href).append("' style='color: #4f46e5; font-size: 13px; text-decoration: underline;' target='_blank'>").append(HtmlUtils.htmlEscape(name)).append("</a>").append("</span>");
+                            html.append("</div>");
+                        }
+                    }
+                }
+            }
+        }
+
+        html.append("<div style='text-align: center; margin-top: 50px; color: #64748b;'>Regards, <strong>ThirdEye Prep Team</strong></div>");
+        html.append("</body></html>");
+        return html.toString();
+    }
 }
